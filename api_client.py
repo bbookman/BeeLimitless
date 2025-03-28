@@ -3,6 +3,7 @@ import json
 import os  # Import os for directory handling
 from config import base_url, api_key  # Import configuration
 from datetime import datetime  # Import datetime for date formatting
+import re  # Import regular expressions for flexible matching
 
 # Function to send a GET request to a specific endpoint
 def get_data(endpoint=""):
@@ -50,8 +51,6 @@ def save_as_markdown(data):
             if summary:  # Only include conversations with a non-null summary
                 # Parse and format the date
                 raw_date = conversation.get("updated_at", "N/A")
-                # file.write(f"Raw Date: {raw_date})\n")
-                # print(f"Raw Date: {raw_date}")  # Debug: Print the raw date
                 if raw_date != "N/A":
                     try:
                         if "." in raw_date:
@@ -59,19 +58,54 @@ def save_as_markdown(data):
                         else:
                             parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
                         formatted_date = parsed_date.strftime("%B %A %d, %Y")
-                        # print(f"Parsed Date: {formatted_date}")  # Debug: Print the formatted date
                     except ValueError:
                         formatted_date = raw_date  # Fallback to raw date if parsing fails
                 else:
                     formatted_date = "N/A"
 
-                # Write the formatted date and other details
-                file.write(f"## {formatted_date}\n")
-                cleaned_summary = summary.replace("Summary: ", "", 1)
-                file.write(f"### {cleaned_summary}\n\n")
+                # Extract segments: summary, atmosphere, and key takeaways
+                cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
+
+                # Write the formatted Markdown
+                file.write(f"## Date: {formatted_date}\n")
+                if cleaned_summary:
+                    file.write(f"###Summary\n{cleaned_summary}\n\n")
+                if atmosphere:
+                    file.write(f"#### Atmosphere\n{atmosphere}\n\n")
+                if key_takeaways:
+                    file.write(f"#### Key Takeaways\n{key_takeaways}\n\n")
                 file.write(f"Conversation ID: {conversation.get('id')}\n\n")
 
     print(f"Response saved as Markdown in {output_file}")
+
+def extract_segments(summary):
+    """
+    Extracts the summary, atmosphere, and key takeaways as separate variables.
+    Searches for the specific section headers and extracts text between them.
+    Returns cleaned_summary, atmosphere, and key_takeaways.
+    """
+    # Initialize variables
+    cleaned_summary = None
+    atmosphere = None
+    key_takeaways = None
+
+    # Use regular expressions to identify and extract each section
+    # Match "Summary:" followed by any text up to "Atmosphere:" or "Key Takeaways:"
+    summary_match = re.search(r"Summary:\s*(.*?)\s*(Atmosphere:|Key Takeaways:|$)", summary, re.DOTALL)
+    if summary_match:
+        cleaned_summary = summary_match.group(1).strip()  # Extract and clean the summary text
+
+    # Match "Atmosphere:" followed by any text up to "Key Takeaways:" or the end
+    atmosphere_match = re.search(r"Atmosphere:\s*(.*?)\s*(Key Takeaways:|$)", summary, re.DOTALL)
+    if atmosphere_match:
+        atmosphere = atmosphere_match.group(1).strip()  # Extract and clean the atmosphere text
+
+    # Match "Key Takeaways:" followed by any text up to the end
+    key_takeaways_match = re.search(r"Key Takeaways:\s*(.*)", summary, re.DOTALL)
+    if key_takeaways_match:
+        key_takeaways = key_takeaways_match.group(1).strip()  # Extract and clean the key takeaways text
+
+    return cleaned_summary, atmosphere, key_takeaways
 
 if __name__ == "__main__":
     print("\nFetching data ...")

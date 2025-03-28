@@ -2,6 +2,7 @@ import requests
 import json
 import os  # Import os for directory handling
 from config import base_url, api_key  # Import configuration
+from datetime import datetime  # Import datetime for date formatting
 
 # Function to send a GET request to a specific endpoint
 def get_data(endpoint=""):
@@ -47,11 +48,28 @@ def save_as_markdown(data):
         for conversation in data.get("conversations", []):
             summary = conversation.get("summary")
             if summary:  # Only include conversations with a non-null summary
-                file.write(f"## Date: {conversation.get('updated_at', 'N/A')}\n")
-                cleaned_summary = summary.replace("Summary: ", "", 1) 
-                file.write(f"### {summary}\n\n")
-              
-                file.write(f"\nConversation ID: {conversation.get('id')}\n\n")
+                # Parse and format the date
+                raw_date = conversation.get("updated_at", "N/A")
+                # file.write(f"Raw Date: {raw_date})\n")
+                # print(f"Raw Date: {raw_date}")  # Debug: Print the raw date
+                if raw_date != "N/A":
+                    try:
+                        if "." in raw_date:
+                            parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+                        else:
+                            parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
+                        formatted_date = parsed_date.strftime("%B %A %d, %Y")
+                        # print(f"Parsed Date: {formatted_date}")  # Debug: Print the formatted date
+                    except ValueError:
+                        formatted_date = raw_date  # Fallback to raw date if parsing fails
+                else:
+                    formatted_date = "N/A"
+
+                # Write the formatted date and other details
+                file.write(f"## {formatted_date}\n")
+                cleaned_summary = summary.replace("Summary: ", "", 1)
+                file.write(f"### {cleaned_summary}\n\n")
+                file.write(f"Conversation ID: {conversation.get('id')}\n\n")
 
     print(f"Response saved as Markdown in {output_file}")
 

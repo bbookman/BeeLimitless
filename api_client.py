@@ -1,15 +1,10 @@
 import requests
-
-# Define the base API URL
-base_url = "https://api.bee.computer"
-
-# Define the API key
-api_key = "sk-eb1593140ffde5856d6e96d9f9c4a74eb20d4441ea84e6e2"  # Replace with your actual API key
+from config import base_url, api_key  # Import configuration
 
 # Function to send a GET request to a specific endpoint
 def get_data(endpoint=""):
     # Construct the full URL by appending the endpoint to the base URL
-    url = f"{base_url}/{endpoint}" if endpoint else base_url
+    url = f"{base_url}/v1/me{endpoint}" if endpoint else base_url
 
     # Add the API key to the headers
     headers = {

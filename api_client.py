@@ -48,6 +48,10 @@ def save_as_markdown(data):
         # Iterate through the conversations and format them as Markdown
         for conversation in data.get("conversations", []):
             summary = conversation.get("summary")
+            short_summary = conversation.get("short_summary")
+            if not short_summary:
+                short_summary = "N/A"  # Use the short summary if available
+                
             if summary:  # Only include conversations with a non-null summary
                 # Parse and format the date
                 raw_date = conversation.get("updated_at", "N/A")
@@ -67,14 +71,17 @@ def save_as_markdown(data):
                 cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
 
                 # Write the formatted Markdown
-                file.write(f"## Date: {formatted_date}\n")
-                if cleaned_summary:
-                    file.write(f"### Summary\n{cleaned_summary}\n\n")
+                file.write(f"## {formatted_date}\n")
+                if short_summary:
+                    file.write(f"### Short Summary\n{short_summary}\n\n")
+
                 if atmosphere:
                     file.write(f"#### Atmosphere\n{atmosphere}\n\n")
                 if key_takeaways:
                     file.write(f"#### Key Takeaways\n{key_takeaways}\n\n")
                 file.write(f"Conversation ID: {conversation.get('id')}\n\n")
+                if cleaned_summary:
+                    file.write(f"#### Full Summary\n{cleaned_summary}\n\n")
 
     print(f"Response saved as Markdown in {output_file}")
 

@@ -24,5 +24,5 @@ if __name__ == "__main__":
     print("Fetching data from the base URL...")
     get_data()  # Fetch data from the base URL
 
-    print("\nFetching data from the 'get_conversations' endpoint...")
+    print("\nFetching data ...")
     get_data("get_conversations")  # Fetch data from the 'get_conversations' endpoint

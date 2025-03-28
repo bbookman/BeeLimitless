@@ -69,7 +69,7 @@ def save_as_markdown(data):
                 # Write the formatted Markdown
                 file.write(f"## Date: {formatted_date}\n")
                 if cleaned_summary:
-                    file.write(f"###Summary\n{cleaned_summary}\n\n")
+                    file.write(f"### Summary\n{cleaned_summary}\n\n")
                 if atmosphere:
                     file.write(f"#### Atmosphere\n{atmosphere}\n\n")
                 if key_takeaways:

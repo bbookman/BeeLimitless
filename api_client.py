@@ -4,9 +4,10 @@ import os
 from config import base_url, api_key
 from datetime import datetime
 import re
+import argparse
 
 # Function to send a GET request to a specific endpoint with paging
-def get_data(endpoint=""):
+def get_data(endpoint="", one_page=False):
     current_page = 1  # Start with the first page
     total_pages = 1  # Initialize total_pages to 1 to enter the loop
 
@@ -32,6 +33,11 @@ def get_data(endpoint=""):
             
             # Process the data and save Markdown files
             save_as_markdown(data)
+            
+            # If the --one_page switch is enabled, stop after the first page
+            if one_page:
+                print("Stopping after fetching one page of data (--one_page enabled).")
+                break
             
             # Update paging information
             current_page = data.get("currentPage", current_page)  # Get the current page from the response
@@ -132,5 +138,10 @@ def extract_segments(summary):
     return cleaned_summary, atmosphere, key_takeaways
 
 if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Process API data and save as Markdown.")
+    parser.add_argument("--one_page", action="store_true", help="Fetch only one page of data.")
+    args = parser.parse_args()
+
     print("\nFetching data ...")
-    get_data("conversations")  # Fetch data from the 'conversations' endpoint
+    get_data("conversations", one_page=args.one_page)  # Fetch data from the 'conversations' endpoint

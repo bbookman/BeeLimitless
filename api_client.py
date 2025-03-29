@@ -1,90 +1,105 @@
 import requests
 import json
-import os  # Import os for directory handling
-from config import base_url, api_key  # Import configuration
-from datetime import datetime  # Import datetime for date formatting
-import re  # Import regular expressions for flexible matching
+import os
+from config import base_url, api_key
+from datetime import datetime
+import re
 
-# Function to send a GET request to a specific endpoint
+# Function to send a GET request to a specific endpoint with paging
 def get_data(endpoint=""):
-    # Construct the full URL by appending the endpoint to the base URL
-    url = f"{base_url}/v1/me/{endpoint}" if endpoint else base_url
+    current_page = 1  # Start with the first page
+    total_pages = 1  # Initialize total_pages to 1 to enter the loop
 
-    # Add the API key to the headers
-    headers = {
-        "accept": "application/json",  # Ensure the API accepts JSON responses
-        "x-api-key": api_key           # Use 'x-api-key' as required by the API
-    }
-    
-    # Debug: Print the headers and URL
-    print("Headers:", headers)
-    print("URL:", url)
+    while current_page <= total_pages:
+        # Construct the full URL with the page parameter
+        url = f"{base_url}/v1/me/{endpoint}?page={current_page}"
+        
+        # Add the API key to the headers
+        headers = {
+            "accept": "application/json",
+            "x-api-key": api_key
+        }
+        
+        # Debug: Print the headers and URL
+        print("Headers:", headers)
+        print("URL:", url)
 
-    # Send the GET request
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        print("GET request successful!")
-        data = response.json()  # Parse the JSON response
-        save_as_markdown(data)  # Save the response as a Markdown file
-    else:
-        print(f"GET request failed with status code: {response.status_code}")
-        print(response.text)  # Print the error message
+        # Send the GET request
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            print(f"GET request successful for page {current_page}!")
+            data = response.json()  # Parse the JSON response
+            
+            # Process the data and save Markdown files
+            save_as_markdown(data)
+            
+            # Update paging information
+            current_page = data.get("currentPage", current_page)  # Get the current page from the response
+            total_pages = data.get("totalPages", total_pages)  # Get the total pages from the response
+            current_page += 1  # Increment to the next page
+        else:
+            print(f"GET request failed with status code: {response.status_code}")
+            print(response.text)  # Print the error message
+            break
 
-# Function to save the API response as a Markdown file
+# Function to save the API response as Markdown files, one per day
 def save_as_markdown(data):
-    # Define the output directory and file
+    # Define the output directory
     output_dir = "markdown"
-    output_file = os.path.join(output_dir, "conversations.md")
-
-    # Ensure the output directory exists
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)  # Create the directory if it doesn't exist
 
-    # Open the file for writing
-    with open(output_file, "w") as file:
-        # Write a title
-        file.write("# Conversations\n\n")
+    # Iterate through the conversations and format them as Markdown
+    for conversation in data.get("conversations", []):
+        summary = conversation.get("summary")
+        if summary:  # Only include conversations with a non-null summary
+            # Parse and format the date
+            raw_date = conversation.get("updated_at", "N/A")
+            if raw_date != "N/A":
+                try:
+                    if "." in raw_date:
+                        parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+                    else:
+                        parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
+                    formatted_date = parsed_date.strftime("%B %A %d, %Y")
+                    file_date = parsed_date.strftime("%Y-%m-%d")  # For the filename
+                except ValueError:
+                    formatted_date = raw_date  # Fallback to raw date if parsing fails
+                    file_date = "unknown"
+            else:
+                formatted_date = "N/A"
+                file_date = "unknown"
 
-        # Iterate through the conversations and format them as Markdown
-        for conversation in data.get("conversations", []):
-            summary = conversation.get("summary")
-            short_summary = conversation.get("short_summary")
-            if not short_summary:
-                short_summary = "N/A"  # Use the short summary if available
-                
-            if summary:  # Only include conversations with a non-null summary
-                # Parse and format the date
-                raw_date = conversation.get("updated_at", "N/A")
-                if raw_date != "N/A":
-                    try:
-                        if "." in raw_date:
-                            parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%S.%fZ")
-                        else:
-                            parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
-                        formatted_date = parsed_date.strftime("%B %A %d, %Y")
-                    except ValueError:
-                        formatted_date = raw_date  # Fallback to raw date if parsing fails
-                else:
-                    formatted_date = "N/A"
+            # Extract segments: summary, atmosphere, and key takeaways
+            cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
 
-                # Extract segments: summary, atmosphere, and key takeaways
-                cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
+            # Define the output file for this day
+            output_file = os.path.join(output_dir, f"{file_date}.md")
 
+            # Open the file for appending (to handle multiple conversations on the same day)
+            with open(output_file, "a") as file:
                 # Write the formatted Markdown
-                file.write(f"## {formatted_date}\n")
-                if short_summary:
-                    file.write(f"### Short Summary\n{short_summary}\n\n")
-
+                
+                if cleaned_summary:
+                    file.write(f"## Date: {formatted_date}\n")
+                    file.write(f"### {cleaned_summary}\n\n")
+                   
                 if atmosphere:
                     file.write(f"#### Atmosphere\n{atmosphere}\n\n")
                 if key_takeaways:
                     file.write(f"#### Key Takeaways\n{key_takeaways}\n\n")
-                file.write(f"Conversation ID: {conversation.get('id')}\n\n")
                 if cleaned_summary:
-                    file.write(f"#### Full Summary\n{cleaned_summary}\n\n")
+                    file.write(f"Conversation ID: {conversation.get('id')}\n\n")
+                    file.write("---\n")  # Separator for multiple conversations
+                    file.write("\n")  # Extra newline for readability
+                
+    # Print the location of saved files
+    if os.path.exists(output_dir):
+        print(f"Markdown files saved in {output_dir}")
+    else:
+        print("Failed to create output directory.")
 
-    print(f"Response saved as Markdown in {output_file}")
-
+# Function to extract segments: summary, atmosphere, and key takeaways
 def extract_segments(summary):
     """
     Extracts the summary, atmosphere, and key takeaways as separate variables.

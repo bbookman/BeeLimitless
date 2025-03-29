@@ -6,6 +6,45 @@ from datetime import datetime
 import re
 import argparse
 
+# Function to remove Markdown formatting from text
+def strip_markdown(text):
+    """
+    Removes Markdown formatting from the given text.
+    """
+    if not text:
+        return text
+
+    # Remove headers (e.g., # Header)
+    text = re.sub(r"^#+\s*", "", text, flags=re.MULTILINE)
+
+    # Remove bold/italic markers (e.g., **bold**, *italic*, __bold__, _italic_)
+    text = re.sub(r"(\*\*|__)(.*?)\1", r"\2", text)  # Bold
+    text = re.sub(r"(\*|_)(.*?)\1", r"\2", text)  # Italic
+
+    # Remove unordered list markers (e.g., * item, - item)
+    text = re.sub(r"^\s*[-*]\s+", "", text, flags=re.MULTILINE)
+
+    # Remove ordered list markers (e.g., 1. item)
+    text = re.sub(r"^\s*\d+\.\s+", "", text, flags=re.MULTILINE)
+
+    # Remove blockquotes (e.g., > quote)
+    text = re.sub(r"^\s*>\s+", "", text, flags=re.MULTILINE)
+
+    # Remove inline code (e.g., `code`)
+    text = re.sub(r"`(.*?)`", r"\1", text)
+
+    # Remove links (e.g., [text](url))
+    text = re.sub(r"\[(.*?)\]\(.*?\)", r"\1", text)
+
+    # Remove images (e.g., ![alt](url))
+    text = re.sub(r"!\[(.*?)\]\(.*?\)", r"\1", text)
+
+    # Remove extra spaces and newlines
+    text = re.sub(r"\n{2,}", "\n\n", text)  # Collapse multiple newlines
+    text = text.strip()  # Trim leading/trailing whitespace
+
+    return text
+
 # Function to send a GET request to a specific endpoint with paging
 def get_data(endpoint="", one_page=False):
     current_page = 1  # Start with the first page
@@ -60,46 +99,50 @@ def save_as_markdown(data):
 
     # Iterate through the conversations and format them as Markdown
     for conversation in data.get("conversations", []):
-        summary = conversation.get("summary")
-        if summary:  # Only include conversations with a non-null summary
-            # Parse and format the date
-            raw_date = conversation.get("updated_at", "N/A")
-            if raw_date != "N/A":
-                try:
-                    if "." in raw_date:
-                        parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%S.%fZ")
-                    else:
-                        parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
-                    formatted_date = parsed_date.strftime("%B %A %d, %Y")
-                    file_date = parsed_date.strftime("%Y-%m-%d")  # For the filename
-                except ValueError:
-                    formatted_date = raw_date  # Fallback to raw date if parsing fails
-                    file_date = "unknown"
-            else:
-                formatted_date = "N/A"
+        summary = conversation.get("summary", "N/A")  # Default to "N/A" if summary is missing
+        summary = strip_markdown(summary)  # Remove Markdown from the summary
+
+        # Parse and format the date
+        raw_date = conversation.get("updated_at", "N/A")
+        if raw_date != "N/A":
+            try:
+                if "." in raw_date:
+                    parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+                else:
+                    parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
+                formatted_date = parsed_date.strftime("%B %A %d, %Y")
+                file_date = parsed_date.strftime("%Y-%m-%d")  # For the filename
+            except ValueError:
+                formatted_date = raw_date  # Fallback to raw date if parsing fails
                 file_date = "unknown"
+        else:
+            formatted_date = "N/A"
+            file_date = "unknown"
 
-            # Extract segments: summary, atmosphere, and key takeaways
-            cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
+        # Ensure summary is a string before passing it to extract_segments
+        summary = summary if summary is not None else ""  # Default to an empty string if None
 
-            # Define the output file for this day
-            output_file = os.path.join(markdown_dir, f"{file_date}.md")
+        # Extract segments: summary, atmosphere, and key takeaways
+        cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
 
-            # Open the file for appending (to handle multiple conversations on the same day)
-            with open(output_file, "a") as file:
-                # Write the formatted Markdown
-                if cleaned_summary:
-                    file.write(f"## Date: {formatted_date}\n")
-                    file.write(f"### {cleaned_summary}\n\n")
-                   
-                if atmosphere:
-                    file.write(f"#### Atmosphere\n{atmosphere}\n\n")
-                if key_takeaways:
-                    file.write(f"#### Key Takeaways\n{key_takeaways}\n\n")
-                if cleaned_summary:
-                    file.write(f"Conversation ID: {conversation.get('id')}\n\n")
-                    file.write("---\n")  # Separator for multiple conversations
-                    file.write("\n")  # Extra newline for readability
+        # Define the output file for this day
+        output_file = os.path.join(markdown_dir, f"{file_date}.md")
+
+        # Open the file for appending (to handle multiple conversations on the same day)
+        with open(output_file, "a") as file:
+            # Write the formatted Markdown
+            if cleaned_summary:
+                file.write(f"## Date: {formatted_date}\n")
+                file.write(f"### {cleaned_summary}\n\n")
+               
+            if atmosphere:
+                file.write(f"#### Atmosphere\n{atmosphere}\n\n")
+            if key_takeaways:
+                file.write(f"#### Key Takeaways\n{key_takeaways}\n\n")
+            if cleaned_summary:
+                file.write(f"Conversation ID: {conversation.get('id')}\n\n")
+                file.write("---\n")  # Separator for multiple conversations
+                file.write("\n")  # Extra newline for readability
                 
     # Print the location of saved files
     if os.path.exists(markdown_dir):
@@ -114,6 +157,10 @@ def extract_segments(summary):
     Searches for the specific section headers and extracts text between them.
     Returns cleaned_summary, atmosphere, and key_takeaways.
     """
+    # Ensure summary is a string
+    if not isinstance(summary, str):
+        summary = ""
+
     # Initialize variables
     cleaned_summary = None
     atmosphere = None
@@ -123,17 +170,17 @@ def extract_segments(summary):
     # Match "Summary:" followed by any text up to "Atmosphere:" or "Key Takeaways:"
     summary_match = re.search(r"Summary:\s*(.*?)\s*(Atmosphere:|Key Takeaways:|$)", summary, re.DOTALL)
     if summary_match:
-        cleaned_summary = summary_match.group(1).strip()  # Extract and clean the summary text
+        cleaned_summary = strip_markdown(summary_match.group(1).strip())  # Extract and clean the summary text
 
     # Match "Atmosphere:" followed by any text up to "Key Takeaways:" or the end
     atmosphere_match = re.search(r"Atmosphere:\s*(.*?)\s*(Key Takeaways:|$)", summary, re.DOTALL)
     if atmosphere_match:
-        atmosphere = atmosphere_match.group(1).strip()  # Extract and clean the atmosphere text
+        atmosphere = strip_markdown(atmosphere_match.group(1).strip())  # Extract and clean the atmosphere text
 
     # Match "Key Takeaways:" followed by any text up to the end
     key_takeaways_match = re.search(r"Key Takeaways:\s*(.*)", summary, re.DOTALL)
     if key_takeaways_match:
-        key_takeaways = key_takeaways_match.group(1).strip()  # Extract and clean the key takeaways text
+        key_takeaways = strip_markdown(key_takeaways_match.group(1).strip())  # Extract and clean the key takeaways text
 
     return cleaned_summary, atmosphere, key_takeaways
 

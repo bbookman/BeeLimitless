@@ -104,6 +104,7 @@ def save_as_markdown(data):
     # Iterate through the conversations and format them as Markdown
     for conversation in data.get("conversations", []):
         summary = conversation.get("summary", "N/A")  # Default to "N/A" if summary is missing
+        raw_summary = summary  # Save the raw summary for fallback
         summary = strip_markdown(summary)  # Remove Markdown from the summary
 
         # Parse and format the date
@@ -122,7 +123,6 @@ def save_as_markdown(data):
         else:
             formatted_date = "N/A"
             file_date = "unknown"
-
 
         # Extract segments: summary, atmosphere, and key takeaways
         cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
@@ -145,12 +145,14 @@ def save_as_markdown(data):
                 file.write(f"Conversation ID: {conversation.get('id')}\n\n")
                 file.write("---\n")  # Separator for multiple conversations
                 file.write("\n")  # Extra newline for readability
-                
-    # Print the location of saved files
-    if os.path.exists(markdown_dir):
-        print(f"Markdown files saved in {markdown_dir}")
-    else:
-        print("Failed to create output directory.")
+
+        # Check if the Markdown file is empty
+        if os.path.exists(output_file) and os.path.getsize(output_file) == 0:
+            print(f"The Markdown file {output_file} is empty. Writing raw text content.")
+            with open(output_file, "w") as file:
+                file.write(f"Raw Summary:\n{raw_summary}\n\n")
+                file.write(f"Raw Atmosphere:\n{conversation.get('atmosphere', 'N/A')}\n\n")
+                file.write(f"Raw Key Takeaways:\n{conversation.get('key_takeaways', 'N/A')}\n\n")
 
 # Function to save the API response as JSON files, one per day
 def save_as_json(data):

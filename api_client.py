@@ -46,7 +46,7 @@ def strip_markdown(text):
     return text
 
 # Function to send a GET request to a specific endpoint with paging
-def get_data(endpoint="", one_page=False):
+def get_data(endpoint="", one_page=False, write_json=False):
     current_page = 1  # Start with the first page
     total_pages = 1  # Initialize total_pages to 1 to enter the loop
 
@@ -72,6 +72,10 @@ def get_data(endpoint="", one_page=False):
             
             # Process the data and save Markdown files
             save_as_markdown(data)
+            
+            # If the --write_json switch is enabled, save raw JSON
+            if write_json:
+                save_as_json(data)
             
             # If the --one_page switch is enabled, stop after the first page
             if one_page:
@@ -128,7 +132,7 @@ def save_as_markdown(data):
 
         # Open the file for appending (to handle multiple conversations on the same day)
         with open(output_file, "a") as file:
-            # Write thsummarye formatted Markdown
+            # Write the formatted Markdown
             if cleaned_summary:
                 file.write(f"## Date: {formatted_date}\n")
                 file.write(f"### {cleaned_summary}\n\n")
@@ -145,6 +149,46 @@ def save_as_markdown(data):
     # Print the location of saved files
     if os.path.exists(markdown_dir):
         print(f"Markdown files saved in {markdown_dir}")
+    else:
+        print("Failed to create output directory.")
+
+# Function to save the API response as JSON files, one per day
+def save_as_json(data):
+    # Define the output directory
+    base_dir = "data"  # Higher-level directory
+    json_dir = os.path.join(base_dir, "json")  # JSON directory inside /data
+
+    # Ensure the directories exist
+    if not os.path.exists(json_dir):
+        os.makedirs(json_dir)  # Create the directories if they don't exist
+
+    # Iterate through the conversations and save them as JSON
+    for conversation in data.get("conversations", []):
+        # Parse and format the date
+        raw_date = conversation.get("updated_at", "N/A")
+        if raw_date != "N/A":
+            try:
+                if "." in raw_date:
+                    parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%S.%fZ")
+                else:
+                    parsed_date = datetime.strptime(raw_date, "%Y-%m-%dT%H:%M:%SZ")
+                file_date = parsed_date.strftime("%Y-%m-%d")  # For the filename
+            except ValueError:
+                file_date = "unknown"
+        else:
+            file_date = "unknown"
+
+        # Define the output file for this day
+        output_file = os.path.join(json_dir, f"{file_date}.json")
+
+        # Save the raw JSON for this conversation
+        with open(output_file, "a") as file:
+            file.write(json.dumps(conversation, indent=4))  # Write the raw JSON with indentation
+            file.write("\n")  # Add a newline for readability
+
+    # Print the location of saved files
+    if os.path.exists(json_dir):
+        print(f"JSON files saved in {json_dir}")
     else:
         print("Failed to create output directory.")
 
@@ -184,9 +228,10 @@ def extract_segments(summary):
 
 if __name__ == "__main__":
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description="Process API data and save as Markdown.")
+    parser = argparse.ArgumentParser(description="Process API data and save as Markdown and optionally JSON.")
     parser.add_argument("--one_page", action="store_true", help="Fetch only one page of data.")
+    parser.add_argument("--write_json", action="store_true", help="Enable writing raw JSON files.")
     args = parser.parse_args()
 
     print("\nFetching data ...")
-    get_data("conversations", one_page=args.one_page)  # Fetch data from the 'conversations' endpoint
+    get_data("conversations", one_page=args.one_page, write_json=args.write_json)  # Fetch data from the 'conversations' endpoint

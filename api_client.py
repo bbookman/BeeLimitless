@@ -45,9 +45,12 @@ def get_data(endpoint=""):
 # Function to save the API response as Markdown files, one per day
 def save_as_markdown(data):
     # Define the output directory
-    output_dir = "markdown"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)  # Create the directory if it doesn't exist
+    base_dir = "data"  # Higher-level directory
+    markdown_dir = os.path.join(base_dir, "markdown")  # Markdown directory inside /data
+
+    # Ensure the directories exist
+    if not os.path.exists(markdown_dir):
+        os.makedirs(markdown_dir)  # Create the directories if they don't exist
 
     # Iterate through the conversations and format them as Markdown
     for conversation in data.get("conversations", []):
@@ -74,12 +77,11 @@ def save_as_markdown(data):
             cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
 
             # Define the output file for this day
-            output_file = os.path.join(output_dir, f"{file_date}.md")
+            output_file = os.path.join(markdown_dir, f"{file_date}.md")
 
             # Open the file for appending (to handle multiple conversations on the same day)
             with open(output_file, "a") as file:
                 # Write the formatted Markdown
-                
                 if cleaned_summary:
                     file.write(f"## Date: {formatted_date}\n")
                     file.write(f"### {cleaned_summary}\n\n")
@@ -94,8 +96,8 @@ def save_as_markdown(data):
                     file.write("\n")  # Extra newline for readability
                 
     # Print the location of saved files
-    if os.path.exists(output_dir):
-        print(f"Markdown files saved in {output_dir}")
+    if os.path.exists(markdown_dir):
+        print(f"Markdown files saved in {markdown_dir}")
     else:
         print("Failed to create output directory.")
 

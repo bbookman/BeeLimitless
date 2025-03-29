@@ -119,8 +119,6 @@ def save_as_markdown(data):
             formatted_date = "N/A"
             file_date = "unknown"
 
-        # Ensure summary is a string before passing it to extract_segments
-        summary = summary if summary is not None else ""  # Default to an empty string if None
 
         # Extract segments: summary, atmosphere, and key takeaways
         cleaned_summary, atmosphere, key_takeaways = extract_segments(summary)
@@ -130,7 +128,7 @@ def save_as_markdown(data):
 
         # Open the file for appending (to handle multiple conversations on the same day)
         with open(output_file, "a") as file:
-            # Write the formatted Markdown
+            # Write thsummarye formatted Markdown
             if cleaned_summary:
                 file.write(f"## Date: {formatted_date}\n")
                 file.write(f"### {cleaned_summary}\n\n")

@@ -3,6 +3,15 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# ignore   .DS_Store files
+
+# ignore markdown files
+*.md
+
+# ignore data directory
+data/
+
+
 config.py
 # C extensions
 *.so

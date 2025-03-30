@@ -1,10 +1,11 @@
 import requests
 import json
 import os
-from config import base_url, api_key
+from config import base_url, api_key, polling_interval
 from datetime import datetime
 import re
 import argparse
+import time
 
 # Function to remove Markdown formatting from text
 def strip_markdown(text):
@@ -33,10 +34,10 @@ def strip_markdown(text):
     # Remove inline code (e.g., `code`)
     text = re.sub(r"`(.*?)`", r"\1", text)
 
-    # Remove links (e.g., [text](url))
+    # Remove links (e.g., text)
     text = re.sub(r"\[(.*?)\]\(.*?\)", r"\1", text)
 
-    # Remove images (e.g., ![alt](url))
+    # Remove images (e.g., !alt)
     text = re.sub(r"!\[(.*?)\]\(.*?\)", r"\1", text)
 
     # Remove extra spaces and newlines
@@ -235,5 +236,8 @@ if __name__ == "__main__":
     parser.add_argument("--write_json", action="store_true", help="Enable writing raw JSON files.")
     args = parser.parse_args()
 
-    print("\nFetching data ...")
-    get_data("conversations", one_page=args.one_page, write_json=args.write_json)  # Fetch data from the 'conversations' endpoint
+    while True:
+        print(f"\nFetching data at {datetime.now()}...")
+        get_data("conversations", one_page=args.one_page, write_json=args.write_json)  # Fetch data from the 'conversations' endpoint
+        print(f"Sleeping for {polling_interval} hour(s)...")
+        time.sleep(polling_interval * 3600)  # Convert hours to seconds

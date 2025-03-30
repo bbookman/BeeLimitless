@@ -11,8 +11,6 @@ __pycache__/
 # ignore data directory
 data/
 
-
-config.py
 # C extensions
 *.so
 

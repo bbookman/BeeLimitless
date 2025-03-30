@@ -229,15 +229,76 @@ def extract_segments(summary):
 
     return cleaned_summary, atmosphere, key_takeaways
 
+# Function to fetch news data
+def get_news_data(endpoint, keywords, include="one", date="2021-01-01"):
+    """
+    Fetch news data from the API.
+    """
+    # Construct the full URL with query parameters
+    url = f"{base_url}/{endpoint}/{date}/?keywords={keywords}&include={include}"
+    
+    # Add the API key to the headers
+    headers = {
+        "x-rapidapi-host": "historical-news.p.rapidapi.com",
+        "x-rapidapi-key": api_key
+    }
+
+    # Send the GET request
+    print(f"Fetching news data from: {url}")
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        print("GET request successful!")
+        return response.json()  # Parse and return the JSON response
+    else:
+        print(f"GET request failed with status code: {response.status_code}")
+        print(response.text)  # Print the error message
+        return None
+
+# Function to save news data as JSON
+def save_news_json(data, output_dir="data/news"):
+    """
+    Save the news data to a JSON file.
+    """
+    if not data:
+        print("No news data to save.")
+        return
+
+    # Ensure the output directory exists
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Define the output file name
+    file_date = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    output_file = os.path.join(output_dir, f"news_{file_date}.json")
+
+    # Save the data to the file
+    with open(output_file, "w") as file:
+        file.write(json.dumps(data, indent=4))
+    
+    print(f"News data saved to {output_file}")
+
 if __name__ == "__main__":
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description="Process API data and save as Markdown and optionally JSON.")
     parser.add_argument("--one_page", action="store_true", help="Fetch only one page of data.")
     parser.add_argument("--write_json", action="store_true", help="Enable writing raw JSON files.")
+    parser.add_argument("--write_news_json", action="store_true", help="Enable writing news JSON files.")
+    parser.add_argument("--keywords", type=str, default="covid,corona,virus,vaccine", help="Comma-separated keywords to search for.")
+    parser.add_argument("--date", type=str, default="2021-01-01", help="Date for the news data (format: YYYY-MM-DD).")
+    parser.add_argument("--include", type=str, default="one", help="Include parameter for the API request.")
     args = parser.parse_args()
 
     while True:
         print(f"\nFetching data at {datetime.now()}...")
+        
+        # Fetch conversations data
         get_data("conversations", one_page=args.one_page, write_json=args.write_json)  # Fetch data from the 'conversations' endpoint
+        
+        # Fetch and save news data if --write_news_json is enabled
+        if args.write_news_json:
+            news_data = get_news_data("reuters", args.keywords, args.include, args.date)
+            save_news_json(news_data)
+        
         print(f"Sleeping for {polling_interval} hour(s)...")
         time.sleep(polling_interval * 3600)  # Convert hours to seconds

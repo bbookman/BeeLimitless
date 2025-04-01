@@ -7,7 +7,7 @@ __pycache__/
 
 # ignore markdown files
 *.md
-
+.DS_Store
 # ignore data directory
 data/
 

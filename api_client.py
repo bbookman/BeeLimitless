@@ -1,7 +1,7 @@
 import requests
 import json
 import os
-from config import base_url, api_key, polling_interval
+from config import base_url, api_key, polling_interval, enable_limitless_api
 from datetime import datetime
 import re
 import argparse
@@ -234,10 +234,21 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Process API data and save as Markdown and optionally JSON.")
     parser.add_argument("--one_page", action="store_true", help="Fetch only one page of data.")
     parser.add_argument("--write_json", action="store_true", help="Enable writing raw JSON files.")
+    parser.add_argument("--write_news_json", action="store_true", help="Enable writing news JSON files.")
     args = parser.parse_args()
 
     while True:
-        print(f"\nFetching data at {datetime.now()}...")
-        get_data("conversations", one_page=args.one_page, write_json=args.write_json)  # Fetch data from the 'conversations' endpoint
+        print(f"\nStarting process at {datetime.now()}...")
+        
+        if enable_limitless_api:
+            get_data("conversations", one_page=args.one_page, write_json=args.write_json)
+        
+        if args.write_news_json:
+            latest_date = get_latest_date_from_markdown()
+            if latest_date:
+                news_data = fetch_news(from_date=latest_date)
+                if news_data:
+                    save_news_as_json(news_data)
+
         print(f"Sleeping for {polling_interval} hour(s)...")
         time.sleep(polling_interval * 3600)  # Convert hours to seconds

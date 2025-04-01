@@ -150,6 +150,10 @@ def save_as_markdown(data):
         # Check if the Markdown file is empty
         if os.path.exists(output_file) and os.path.getsize(output_file) == 0:
             print(f"The Markdown file {output_file} is empty. Writing raw text content.")
+            # Clean the filename by removing backticks
+            clean_filename = file_date.replace("`", "")
+            output_file = os.path.join(markdown_dir, f"{clean_filename}.md")
+            
             with open(output_file, "w") as file:
                 file.write(f"Raw Summary:\n{raw_summary}\n\n")
                 file.write(f"Raw Atmosphere:\n{conversation.get('atmosphere', 'N/A')}\n\n")
